@@ -1,11 +1,11 @@
-# Deploying a Vyper Smart Contract to RootStock (RSK) Testnet using Python
+# Deploying a Vyper Smart Contract to Hedera Testnet using Python
 
 <p align="center">
- <img width="1000" src="https://github.com/EdwinLiavaa/Web3py-Vyper-RootStock/blob/main/pic.png">
+ <img width="1000" src="pic.png">
 </p>
 
 ## Table of Contents
-- [Deploying a Vyper Smart Contract to RootStock (RSK) Testnet using Python](#deploying-a-vyper-smart-contract-to-rootstock-rsk-testnet-using-python)
+- [Deploying a Vyper Smart Contract to Hedera Testnet using Python](#deploying-a-vyper-smart-contract-to-hedera-testnet-using-python)
   - [Table of Contents](#table-of-contents)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -14,14 +14,16 @@
   - [Quickstart](#quickstart)
   - [Setup Environment](#setup-environment)
   - [Configuration](#configuration)
-  - [Get Testnet RBTC](#get-testnet-rbtc)
+  - [Get Testnet HBAR](#get-testnet-hbar)
   - [The Smart Contract](#the-smart-contract)
   - [Deployment Script](#deployment-script)
-  - [Key Points About RSK Deployment](#key-points-about-rsk-deployment)
+  - [Key Points About Hedera Deployment](#key-points-about-hedera-deployment)
+  - [Troubleshooting](#troubleshooting)
+    - [Common Issues](#common-issues)
   - [Running the Deployment](#running-the-deployment)
   - [Special Thanks](#special-thanks)
 
-This guide walks through the process of deploying a smart contract to the RootStock (RSK) testnet using Python and Web3.py. We'll be deploying a simple Vyper contract that demonstrates how to interact with the RSK network.
+This guide walks through the process of deploying a smart contract to the Hedera testnet using Python and Web3.py. We'll be deploying a simple Vyper contract that demonstrates how to interact with the Hedera network.
 
 ## Prerequisites
 
@@ -42,13 +44,13 @@ echo "source $HOME/.zshenv >> $HOME/.zprofile"
 - Python 3.x
 - A text editor
 - Basic understanding of smart contracts and Python
-- RSK testnet RBTC (will show you how to get this)
+- Hedera testnet account with HBAR (will show you how to get this)
 
 ## Installation
 
 ```bash
-git clone https://github.com/cyfrin/web3py-favorites-cu
-cd web3py-favorites-cu
+git clone https://github.com/EdwinLiavaa/Web3py-Vyper-Hedera.git
+cd Web3py-Vyper-Hedera
 ```
 
 ### uv 
@@ -91,20 +93,21 @@ pip install python-dotenv web3 vyper
 Create a `.env` file in your project root with your configuration:
 
 ```env
-RPC_URL="https://rpc.testnet.rootstock.io/[YOUR-API-KEY]"
+RPC_URL="https://testnet.hashio.io/api"
 PRIVATE_KEY="your-private-key"  # Never commit your real private key!
 MY_ADDRESS="your-wallet-address"
+ACCOUNT_ID="your-hedera-account-id"  # Format: 0.0.xxxxx
 ```
 THIS IS ONLY FOR TESTING - TYPICALLY YOU SHOULD NEVER SHARE YOUR PRIVATE KEY.
 
-## Get Testnet RBTC
+## Get Testnet HBAR
 
-Before deploying, you'll need some testnet RBTC:
+Before deploying, you'll need some testnet HBAR:
 
-1. Go to the RSK faucet: https://faucet.rsk.co/
-2. Enter your wallet address
-3. Complete the captcha and request funds
-4. Wait a few minutes for the transaction to be confirmed
+1. Go to the Hedera Portal: https://portal.hedera.com/
+2. Create an account if you haven't already
+3. Your testnet account will automatically be credited with HBAR
+4. Save your Account ID and private key
 
 ## The Smart Contract
 
@@ -128,92 +131,78 @@ def store(new_number: uint256):
 
 ## Deployment Script
 
-Here's our Python script to deploy the contract (`deploy_favorites_unsafe.py`):
+The deployment script (`deploy_favorites_unsafe.py`) handles the deployment to Hedera's testnet. Key features:
 
-```python
-from web3 import Web3
-from dotenv import load_dotenv
-from vyper import compile_code
-import os
+- Uses Hedera's testnet RPC endpoint
+- Handles Hedera's address format
+- Manages gas fees in HBAR
+- Chain ID: 296 (Hedera Testnet)
 
-load_dotenv()
+## Key Points About Hedera Deployment
 
-RPC_URL = os.getenv("RPC_URL")
+1. **Network Configuration**
+   - Hedera testnet uses chain ID 296
+   - RPC endpoint: https://testnet.hashio.io/api
 
-def main():
-    print("Let's read in the Vyper code and deploy it to the blockchain!")
-    w3 = Web3(Web3.HTTPProvider(RPC_URL))
-    with open("favorites.vy", "r") as favorites_file:
-        favorites_code = favorites_file.read()
-        compliation_details = compile_code(
-            favorites_code, output_formats=["bytecode", "abi"]
-        )
+2. **Address Format**
+   - Hedera uses both EVM-compatible addresses and Hedera account IDs
+   - Account IDs format: 0.0.xxxxx
+   - EVM addresses start with "0x"
 
-    chain_id = 31  # RSK testnet chain ID
+3. **Gas Management**
+   - Gas fees are paid in HBAR
+   - Gas limits are typically set to 3,000,000
+   - Uses maxFeePerGas and maxPriorityFeePerGas for EIP-1559 style transactions
 
-    print("Getting environment variables...")
-    my_address = os.getenv("MY_ADDRESS")
-    private_key = os.getenv("PRIVATE_KEY")
+4. **Web3.py Compatibility**
+   - Uses web3.py's `raw_transaction` attribute for signed transactions
+   - Ensures compatibility with latest web3.py versions
+   - Properly handles transaction signing and sending
 
-    # Check balance before deployment
-    balance = w3.eth.get_balance(my_address)
-    balance_in_rbtc = w3.from_wei(balance, "ether")
-    print(f"Account balance: {balance_in_rbtc} RBTC")
+5. **Testing**
+   - Always test contracts on testnet first
+   - Testnet HBAR is free from the Hedera Portal
+   - Monitor your deployment using Hedera's testnet explorer
 
-    if balance == 0:
-        print("Your account has no RBTC! Please get some testnet RBTC from the faucet:")
-        print("1. Go to https://faucet.rsk.co/")
-        print("2. Enter your address:", my_address)
-        print("3. Complete the captcha and request funds")
-        print("4. Wait a few minutes for the transaction to be confirmed")
-        return
+## Troubleshooting
 
-    # Create the contract in Python
-    favorites_contract = w3.eth.contract(
-        abi=compliation_details["abi"], bytecode=compliation_details["bytecode"]
-    )
+### Common Issues
 
-    # Submit the transaction that deploys the contract
-    nonce = w3.eth.get_transaction_count(my_address)
+1. **SignedTransaction attribute error**
+   If you encounter an error like `'SignedTransaction' object has no attribute 'rawTransaction'`, make sure you're using:
+   ```python
+   tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)  # Note: raw_transaction not rawTransaction
+   ```
+   This is the correct attribute name in recent web3.py versions.
 
-    print("Building the transaction...")
-    transaction = favorites_contract.constructor().build_transaction(
-        {
-            "chainId": chain_id,
-            "from": my_address,
-            "nonce": nonce,
-            "gas": 3000000,  # Higher gas limit for RSK
-            "gasPrice": w3.eth.gas_price * 2,  # Double the gas price to ensure transaction goes through
-        }
-    )
+2. **Insufficient HBAR**
+   - Ensure you have enough testnet HBAR for deployment
+   - Check your balance using the Hedera Portal
+   - Request testnet HBAR if needed
 
-    print("Signing transaction...")
-    signed_txn = w3.eth.account.sign_transaction(transaction, private_key=private_key)
-    print("Deploying contract...")
-    tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    print(f"Contract deployed! Address: {tx_receipt.contractAddress}")
-
-if __name__ == "__main__":
-    main()
-```
-
-## Key Points About RSK Deployment
-
-1. **Chain ID**: RSK testnet uses chain ID 31
-2. **Gas Settings**: 
-   - We use a higher gas limit (3,000,000) for RSK
-   - We double the gas price to ensure the transaction goes through
-3. **Transaction Type**: 
-   - RSK works best with legacy transactions (using `gasPrice` instead of EIP-1559 parameters)
+3. **Network Connection Issues**
+   - Verify your RPC URL is correct
+   - Check your internet connection
+   - Ensure the Hedera testnet is operational
 
 ## Running the Deployment
 
-Execute the deployment script:
+To deploy your contract:
+
+1. Ensure your `.env` file is configured with your Hedera credentials
+2. Make sure you have testnet HBAR
+3. Run the deployment script:
 
 ```bash
 python deploy_favorites_unsafe.py
 ```
+
+The script will:
+- Check your HBAR balance
+- Compile the Vyper contract
+- Deploy to Hedera testnet
+- Provide you with the deployed contract address
+
 ## Special Thanks
 
 The boilerplate used in this project was adopted from the Cyfrin Updraft Python and Viper Starter Kit:
